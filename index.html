@@ -5,72 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js + WebXR Example</title>
   <style>
-    body { margin: 0; }
+    body { margin: 0; font-family: Arial, sans-serif; }
     canvas { display: block; }
+    .unsupported-message {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
+  <div class="unsupported-message" id="unsupportedMessage">
+    WebXR is not supported on this device or browser.
+  </div>
+
   <script type="module">
     import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js';
     import { ARButton } from 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/webxr/ARButton.js';
 
-    // Create the scene
-    const scene = new THREE.Scene();
-
-    // Create a camera
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-    // Create the WebGL renderer with WebXR support
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true; // Enable WebXR
-    document.body.appendChild(renderer.domElement);
-
-    // Add AR button to the page
-    document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
-
-    // Create a simple cube
-    const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
-
-    // Set initial cube position to be updated in AR session
-    cube.visible = false;
-
-    // Reference space for hit testing
-    let xrHitTestSource = null;
-    let xrHitTestSourceRequested = false;
-
-    // Animation loop
-    renderer.setAnimationLoop((timestamp, frame) => {
-      if (frame) {
-        const referenceSpace = renderer.xr.getReferenceSpace();
-        const session = renderer.xr.getSession();
-
-        if (!xrHitTestSourceRequested) {
-          session.requestReferenceSpace('viewer').then((referenceSpace) => {
-            session.requestHitTestSource({ space: referenceSpace }).then((source) => {
-              xrHitTestSource = source;
-            });
-          });
-          xrHitTestSourceRequested = true;
+    if ('xr' in navigator) {
+      // WebXR is supported
+      navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+        if (supported) {
+          initialize();
+        } else {
+          document.getElementById('unsupportedMessage').style.display = 'block';
         }
+      });
+    } else {
+      // WebXR is not supported
+      document.getElementById('unsupportedMessage').style.display = 'block';
+    }
 
-        if (xrHitTestSource) {
-          const hitTestResults = frame.getHitTestResults(xrHitTestSource);
-          if (hitTestResults.length > 0) {
-            const hit = hitTestResults[0];
-            const pose = hit.getPose(referenceSpace);
+    function initialize() {
+      // Create the scene
+      const scene = new THREE.Scene();
 
-            cube.visible = true;
-            cube.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+      // Create a camera
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      // Create the WebGL renderer with WebXR support
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true; // Enable WebXR
+      document.body.appendChild(renderer.domElement);
+
+      // Add AR button to the page
+      document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures: ['hit-test'] }));
+
+      // Create a simple cube
+      const geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+      const cube = new THREE.Mesh(geometry, material);
+      scene.add(cube);
+
+      // Set initial cube position to be updated in AR session
+      cube.visible = false;
+
+      // Reference space for hit testing
+      let xrHitTestSource = null;
+      let xrHitTestSourceRequested = false;
+
+      // Animation loop
+      renderer.setAnimationLoop((timestamp, frame) => {
+        if (frame) {
+          const referenceSpace = renderer.xr.getReferenceSpace();
+          const session = renderer.xr.getSession();
+
+          if (!xrHitTestSourceRequested) {
+            session.requestReferenceSpace('viewer').then((referenceSpace) => {
+              session.requestHitTestSource({ space: referenceSpace }).then((source) => {
+                xrHitTestSource = source;
+              });
+            });
+            xrHitTestSourceRequested = true;
+          }
+
+          if (xrHitTestSource) {
+            const hitTestResults = frame.getHitTestResults(xrHitTestSource);
+            if (hitTestResults.length > 0) {
+              const hit = hitTestResults[0];
+              const pose = hit.getPose(referenceSpace);
+
+              cube.visible = true;
+              cube.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
+            }
           }
         }
-      }
 
-      renderer.render(scene, camera);
-    });
+        renderer.render(scene, camera);
+      });
+    }
   </script>
 </body>
 </html>
